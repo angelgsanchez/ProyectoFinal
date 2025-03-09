@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
+  SafeAreaView, 
   View,
   Text,
   StyleSheet,
   Image,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
-import { Dimensions } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
-
-// Importa tu componente de cronómetro
 import Cronometro from './Cronometro';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ResistenciaNivel1Game() {
-  // ESTADOS PRINCIPALES
   const [introVisible, setIntroVisible] = useState(true);
   const [countdown, setCountdown] = useState(5);
   const [testStarted, setTestStarted] = useState(false);
@@ -24,14 +22,11 @@ export default function ResistenciaNivel1Game() {
 
   const [stillTime, setStillTime] = useState(0);
   const [finalWarning, setFinalWarning] = useState<number | null>(null);
-
-  // Guardar tiempo final para mostrarlo en pantalla final
   const [finalTime, setFinalTime] = useState(0);
 
-  // Sonido para countdown
   const [sound, setSound] = useState<Audio.Sound | null>(null);
 
-  // Cargar sonido countdown.mp3
+  // Carga sonido
   useEffect(() => {
     async function loadSound() {
       try {
@@ -45,11 +40,13 @@ export default function ResistenciaNivel1Game() {
     }
     loadSound();
     return () => {
-      if (sound) sound.unloadAsync();
+      if (sound) {
+        sound.unloadAsync();
+      }
     };
   }, []);
 
-  // Mensaje inicial de 2s
+  // Mensaje inicial 2s
   useEffect(() => {
     if (introVisible) {
       const timer = setTimeout(() => {
@@ -59,10 +56,9 @@ export default function ResistenciaNivel1Game() {
     }
   }, [introVisible]);
 
-  // Cuenta regresiva
+  // Cuenta regresiva 5s
   useEffect(() => {
     if (!introVisible && !testStarted && countdown > 0) {
-      // Reproduce sonido en cada tick
       if (sound) {
         (async () => {
           const status = await sound.getStatusAsync();
@@ -81,7 +77,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [introVisible, countdown, testStarted, sound]);
 
-  // Acelerómetro: detecta inmovilidad
+  // Detección de inmovilidad
   useEffect(() => {
     if (testStarted && !raceEnded) {
       const subscription = Accelerometer.addListener((data) => {
@@ -89,13 +85,10 @@ export default function ResistenciaNivel1Game() {
         if (totalAccel < 1.2) {
           setStillTime((prev) => prev + 0.5);
         } else {
-          // Si se mueve, reseteamos la advertencia
           setStillTime(0);
           if (finalWarning !== null) {
             setFinalWarning(null);
-            if (sound) {
-              sound.stopAsync();
-            }
+            sound?.stopAsync();
           }
         }
       });
@@ -104,11 +97,10 @@ export default function ResistenciaNivel1Game() {
     }
   }, [testStarted, raceEnded, finalWarning, sound]);
 
-  // Si inmóvil 2s => finalWarning = 5
+  // Activa advertencia final si inmóvil 2s
   useEffect(() => {
     if (stillTime >= 2 && finalWarning === null && !raceEnded && testStarted) {
       setFinalWarning(5);
-      // Reproduce el sonido de advertencia una sola vez
       if (sound) {
         (async () => {
           const status = await sound.getStatusAsync();
@@ -121,7 +113,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [stillTime, finalWarning, raceEnded, testStarted, sound]);
 
-  // Decrementa la advertencia
+  // Decrementa advertencia
   useEffect(() => {
     let warningInterval: NodeJS.Timeout | null = null;
     if (finalWarning !== null && finalWarning > 0 && !raceEnded) {
@@ -129,7 +121,6 @@ export default function ResistenciaNivel1Game() {
         setFinalWarning((prev) => (prev !== null ? prev - 1 : null));
       }, 1000);
     } else if (finalWarning === 0 && !raceEnded) {
-      // Termina la carrera
       setRaceEnded(true);
     }
     return () => {
@@ -137,19 +128,18 @@ export default function ResistenciaNivel1Game() {
     };
   }, [finalWarning, raceEnded]);
 
-  // Maneja el tiempo que viene del cronómetro
+  // Recibir tiempo del cronómetro
   const handleTimeChange = (timeInSeconds: number) => {
     if (!raceEnded) {
       setFinalTime(timeInSeconds);
     }
   };
 
-  // Formato para mostrar el tiempo final
+  // Formatear tiempo final
   function formatTime(seconds: number): string {
     const hh = Math.floor(seconds / 3600);
     const mm = Math.floor((seconds % 3600) / 60);
     const ss = seconds % 60;
-
     if (hh > 0) {
       return `${hh.toString().padStart(2, '0')}:${mm
         .toString()
@@ -162,9 +152,8 @@ export default function ResistenciaNivel1Game() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       {raceEnded ? (
-        // Pantalla final
         <View style={styles.resultContainer}>
           <Text style={styles.resultTitle}>¡Carrera Terminada!</Text>
           <Text style={styles.resultText}>
@@ -181,18 +170,18 @@ export default function ResistenciaNivel1Game() {
         </View>
       ) : (
         <>
-          {/* Imagen de fondo (mapa) */}
+          {/* Mapa de fondo */}
           <Image
             source={require('../../assets/images/map.png')}
             style={styles.map}
           />
-          {/* GIF del corredor, más grande y más arriba */}
+          {/* Corredor */}
           <Image
             source={require('../../assets/images/runner.gif')}
             style={styles.runner}
           />
 
-          {/* Cronómetro encima del mapa, con letras negras y sombra */}
+          {/* Cronómetro en overlay */}
           <View style={styles.timerOverlay}>
             <Cronometro
               isRunning={testStarted && !raceEnded}
@@ -200,7 +189,7 @@ export default function ResistenciaNivel1Game() {
             />
           </View>
 
-          {/* Mensaje de advertencia */}
+          {/* Advertencia */}
           {finalWarning !== null && (
             <View style={styles.overlayContainer}>
               <Text style={styles.warningText}>
@@ -212,38 +201,22 @@ export default function ResistenciaNivel1Game() {
           )}
         </>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: 10,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    zIndex: 10,
-  },
-  backButton: {
-    paddingVertical: 8,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
-  },
-
-  // El mapa debe cubrir toda la pantalla
+  // Mapa a pantalla completa DENTRO del safe area
   map: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    height: SCREEN_HEIGHT, 
     resizeMode: 'cover',
   },
-  // Corredor un poco más grande y más arriba
   runner: {
     width: 120,
     height: 120,
@@ -251,17 +224,14 @@ const styles = StyleSheet.create({
     bottom: 80,
     left: 30,
   },
-
-  // Contenedor del cronómetro, encima del mapa
   timerOverlay: {
     position: 'absolute',
-    top: 100, // Debajo de la barra superior
+    top: 100,
     left: 0,
     right: 0,
     alignItems: 'center',
     zIndex: 11,
   },
-
   content: {
     flex: 1,
     alignItems: 'center',
@@ -280,7 +250,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FF4757',
   },
-
   overlayContainer: {
     position: 'absolute',
     top: 0, bottom: 0, left: 0, right: 0,
@@ -298,7 +267,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-
   resultContainer: {
     flex: 1,
     alignItems: 'center',
