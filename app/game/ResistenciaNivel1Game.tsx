@@ -163,13 +163,6 @@ export default function ResistenciaNivel1Game() {
 
   return (
     <View style={styles.container}>
-      {/* Barra superior con botón de Volver */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Volver</Text>
-        </TouchableOpacity>
-      </View>
-
       {raceEnded ? (
         // Pantalla final
         <View style={styles.resultContainer}>
