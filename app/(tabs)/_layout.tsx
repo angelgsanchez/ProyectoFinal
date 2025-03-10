@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Chrome as Home, Trophy, ChartBar as BarChart2, User } from 'lucide-react-native';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default function TabLayout() {
   return (
@@ -9,16 +10,17 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           tabBarStyle: styles.tabBar,
-          tabBarActiveTintColor: '#007AFF',
-          tabBarInactiveTintColor: '#8E8E93',
+          tabBarActiveTintColor: '#FFF50A',
+          tabBarInactiveTintColor: '#FFFFFF',
           headerShown: false,
+          tabBarShowLabel: true,
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
             title: 'Inicio',
-            tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+            tabBarIcon: ({ color, size }) => <AntDesign name="home" size={size} color={color} />,
           }}
         />
         <Tabs.Screen
@@ -50,13 +52,19 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF', // o el color de fondo que desees
+    backgroundColor: '#1E293B',
   },
   tabBar: {
-    backgroundColor: '#FFFFFF',
+    // padding: 10,
+    backgroundColor: '#1E293B',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    paddingBottom: 5,
-    paddingTop: 5,
+    borderTopColor: '#FFFFFF',
+    paddingBottom: 10,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    boxShadow: '0px -5px 10px rgba(0, 0, 0, 0.25)',
   },
+
 });
