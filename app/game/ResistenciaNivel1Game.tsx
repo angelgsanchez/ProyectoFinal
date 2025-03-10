@@ -1,20 +1,105 @@
-import React, { useState, useEffect } from 'react';
+// app/game/ResistenciaNivel1Game.tsx
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  SafeAreaView, 
+  SafeAreaView,
   View,
   Text,
   StyleSheet,
   Image,
   TouchableOpacity,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
 import Cronometro from './Cronometro';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// Se asume que la imagen original del mapa es 6325x3514, pero queremos mostrar una "ventana" de 624x1111.
+// Al escalar para que la altura sea 1111, el ancho resultante será aproximadamente 1999.
+const MAP_WIDTH = 1999;
+const MAP_HEIGHT = 1111;
+
+// Array de frames del corredor (suponiendo que tienes 19 frames)
+const RUNNER_FRAMES = [
+  require('../../assets/images/frames/0.gif'),
+  require('../../assets/images/frames/1.gif'),
+  require('../../assets/images/frames/2.gif'),
+  require('../../assets/images/frames/3.gif'),
+  require('../../assets/images/frames/4.gif'),
+  require('../../assets/images/frames/5.gif'),
+  require('../../assets/images/frames/6.gif'),
+  require('../../assets/images/frames/7.gif'),
+  require('../../assets/images/frames/8.gif'),
+  require('../../assets/images/frames/9.gif'),
+  require('../../assets/images/frames/10.gif'),
+  require('../../assets/images/frames/11.gif'),
+  require('../../assets/images/frames/12.gif'),
+  require('../../assets/images/frames/13.gif'),
+  require('../../assets/images/frames/14.gif'),
+  require('../../assets/images/frames/15.gif'),
+  require('../../assets/images/frames/16.gif'),
+  require('../../assets/images/frames/17.gif'),
+  require('../../assets/images/frames/18.gif'),
+];
+
+// Componente interno para animar el mapa y el corredor
+function AnimatedMap() {
+  const mapX = useRef(new Animated.Value(0)).current;
+  const [frameIndex, setFrameIndex] = useState(0);
+
+  // Animar el mapa de 0 a -(MAP_WIDTH - SCREEN_WIDTH) en un bucle infinito
+  useEffect(() => {
+    const scrollLoop = () => {
+      mapX.setValue(0);
+      Animated.timing(mapX, {
+        toValue: -(MAP_WIDTH - SCREEN_WIDTH),
+        duration: 10000, // 10s
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) scrollLoop();
+      });
+    };
+    scrollLoop();
+  }, [mapX]);
+
+
+  // Animar los frames del corredor cada 100ms
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View style={styles.animatedMapContainer}>
+      <Animated.View
+      style={[
+        styles.scrollingContainer,
+        { transform: [{ translateX: mapX }] },
+      ]}
+    >
+      <Image
+        source={require('../../assets/images/bigMap.jpg')}
+        style={styles.mapImage}
+      />
+      <Image
+        source={require('../../assets/images/bigMap.jpg')}
+        style={styles.mapImage}
+      />
+    </Animated.View>
+      {/* Corredor animado */}
+      <Image
+        source={RUNNER_FRAMES[frameIndex]}
+        style={styles.runner}
+      />
+    </View>
+  );
+}
 
 export default function ResistenciaNivel1Game() {
+  // ESTADOS PRINCIPALES
   const [introVisible, setIntroVisible] = useState(true);
   const [countdown, setCountdown] = useState(5);
   const [testStarted, setTestStarted] = useState(false);
@@ -26,7 +111,7 @@ export default function ResistenciaNivel1Game() {
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
 
-  // Carga sonido
+  // Cargar sonido countdown.mp3
   useEffect(() => {
     async function loadSound() {
       try {
@@ -40,13 +125,11 @@ export default function ResistenciaNivel1Game() {
     }
     loadSound();
     return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
+      if (sound) sound.unloadAsync();
     };
   }, []);
 
-  // Mensaje inicial 2s
+  // Mensaje inicial de 2s
   useEffect(() => {
     if (introVisible) {
       const timer = setTimeout(() => {
@@ -56,7 +139,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [introVisible]);
 
-  // Cuenta regresiva 5s
+  // Cuenta regresiva de 5s
   useEffect(() => {
     if (!introVisible && !testStarted && countdown > 0) {
       if (sound) {
@@ -97,7 +180,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [testStarted, raceEnded, finalWarning, sound]);
 
-  // Activa advertencia final si inmóvil 2s
+  // Activar advertencia final si inmóvil 2s
   useEffect(() => {
     if (stillTime >= 2 && finalWarning === null && !raceEnded && testStarted) {
       setFinalWarning(5);
@@ -113,7 +196,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [stillTime, finalWarning, raceEnded, testStarted, sound]);
 
-  // Decrementa advertencia
+  // Decrementar advertencia
   useEffect(() => {
     let warningInterval: NodeJS.Timeout | null = null;
     if (finalWarning !== null && finalWarning > 0 && !raceEnded) {
@@ -128,14 +211,12 @@ export default function ResistenciaNivel1Game() {
     };
   }, [finalWarning, raceEnded]);
 
-  // Recibir tiempo del cronómetro
   const handleTimeChange = (timeInSeconds: number) => {
     if (!raceEnded) {
       setFinalTime(timeInSeconds);
     }
   };
 
-  // Formatear tiempo final
   function formatTime(seconds: number): string {
     const hh = Math.floor(seconds / 3600);
     const mm = Math.floor((seconds % 3600) / 60);
@@ -145,9 +226,7 @@ export default function ResistenciaNivel1Game() {
         .toString()
         .padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
     } else {
-      return `${mm.toString().padStart(2, '0')}:${ss
-        .toString()
-        .padStart(2, '0')}`;
+      return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
     }
   }
 
@@ -170,26 +249,13 @@ export default function ResistenciaNivel1Game() {
         </View>
       ) : (
         <>
-          {/* Mapa de fondo */}
-          <Image
-            source={require('../../assets/images/map.png')}
-            style={styles.map}
-          />
-          {/* Corredor */}
-          <Image
-            source={require('../../assets/images/runner.gif')}
-            style={styles.runner}
-          />
-
-          {/* Cronómetro en overlay */}
+          <AnimatedMap />
           <View style={styles.timerOverlay}>
             <Cronometro
               isRunning={testStarted && !raceEnded}
               onTimeChange={handleTimeChange}
             />
           </View>
-
-          {/* Advertencia */}
           {finalWarning !== null && (
             <View style={styles.overlayContainer}>
               <Text style={styles.warningText}>
@@ -209,20 +275,33 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 10,
+    paddingTop: 10, // Separa un poco de la barra de notificaciones
   },
-  // Mapa a pantalla completa DENTRO del safe area
-  map: {
+  animatedMapContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT, 
+    height: SCREEN_HEIGHT,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  scrollingContainer: {
+    flexDirection: 'row',
+  },
+  animatedMap: {
+    position: 'absolute',
+    width: MAP_WIDTH,
+    height: MAP_HEIGHT,
+  },
+  mapImage: {
+    width: MAP_WIDTH,
+    height: MAP_HEIGHT,
     resizeMode: 'cover',
   },
   runner: {
-    width: 120,
-    height: 120,
     position: 'absolute',
-    bottom: 80,
-    left: 30,
+    width: 180,    // Aumentado de 120
+    height: 180,   // Aumentado de 120
+    bottom: 50,    // Ajusta la posición vertical
+    left: SCREEN_WIDTH / 2 - 75, // Centrado (150/2 = 75)
   },
   timerOverlay: {
     position: 'absolute',
@@ -256,6 +335,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 20,
+    padding: 16,
   },
   warningText: {
     fontSize: 32,
