@@ -1,41 +1,85 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-const level = {
-  id: 1,
-  name: 'Nivel 1',
-  description: 'Introducción a los ejercicios básicos',
-  duration: '10 minutos',
-  difficulty: 'Principiante',
+const getCategoryName = (id: string) => {
+  const categories = {
+    '1': 'Resistencia',
+    '2': 'Fuerza',
+    '3': 'Velocidad',
+    '4': 'Equilibrio',
+  };
+  return categories[id as keyof typeof categories] || 'Categoría';
+};
+
+const getCategoryColor = (id: string) => {
+  const colors = {
+    '1': '#FF9500',
+    '2': '#FF3B30',
+    '3': '#5856D6',
+    '4': '#34C759',
+  };
+  return colors[id as keyof typeof colors] || '#000000';
+};
+
+const getLevelDetails = (categoryId: string) => {
+  // Puedes personalizar el texto de cada categoría
+  switch (categoryId) {
+    case '1': // Resistencia
+      return {
+        id: 1,
+        name: 'Nivel 1',
+        description: 'Corre, corre sin parar',
+        purpose: 'Logra tu máximo tiempo',
+        difficulty: 'Principiante',
+      };
+    case '2': // Fuerza
+      return {
+        id: 1,
+        name: 'Nivel 1',
+        description: 'Arriba y abajo',
+        purpose: 'Llega a tu máximo de repeticiones',
+        difficulty: 'Principiante',
+      };
+    case '3': // Velocidad
+      return {
+        id: 1,
+        name: 'Nivel 1',
+        description: 'Lo más rápido que puedas',
+        purpose: 'Haz tu máximo en menos de 30 seg',
+        difficulty: 'Principiante',
+      };
+      case '4': // Velocidad
+      return {
+        id: 1,
+        name: 'Nivel 1',
+        description: '¡No te muevas!',
+        purpose: 'Manten tus 3 vidas en el mayor tiempo posible',
+        difficulty: 'Principiante',
+      };
+    // Puedes agregar otros casos o usar valores por defecto:
+    default:
+      return {
+        id: 1,
+        name: 'Nivel 1',
+        description: 'Introducción a los ejercicios básicos',
+        purpose: '10 minutos',
+        difficulty: 'Principiante',
+      };
+  }
 };
 
 export default function CategoryScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
 
-  const getCategoryName = (id: string) => {
-    const categories = {
-      '1': 'Resistencia',
-      '2': 'Fuerza',
-      '3': 'Flexibilidad',
-      '4': 'Coordinación',
-      '5': 'Velocidad',
-      '6': 'Equilibrio',
-    };
-    return categories[id as keyof typeof categories] || 'Categoría';
-  };
-
-  const getCategoryColor = (id: string) => {
-    const colors = {
-      '1': '#FF9500',
-      '2': '#FF3B30',
-      '3': '#5856D6',
-      '4': '#34C759',
-      '5': '#007AFF',
-      '6': '#AF52DE',
-    };
-    return colors[id as keyof typeof colors] || '#000000';
-  };
+  const level = getLevelDetails(id as string);
 
   return (
     <ScrollView style={styles.container}>
@@ -46,7 +90,10 @@ export default function CategoryScreen() {
       <View style={styles.levelList}>
         <TouchableOpacity
           style={[styles.levelCard, { borderColor: getCategoryColor(id as string) }]}
-          onPress={() => router.push(`/game/${id}/${level.id}`)}>
+          onPress={() => router.push(`/game/${id}/${level.id}`)}
+          activeOpacity={0.85}
+          key={level.id}
+        >
           <View style={styles.levelHeader}>
             <Text style={styles.levelTitle}>{level.name}</Text>
             <View style={[styles.badge, { backgroundColor: getCategoryColor(id as string) }]}>
@@ -55,7 +102,7 @@ export default function CategoryScreen() {
           </View>
           <Text style={styles.levelDescription}>{level.description}</Text>
           <View style={styles.levelFooter}>
-            <Text style={styles.levelDuration}>⏱ {level.duration}</Text>
+            <Text style={styles.levelDuration}>{level.purpose}</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -94,10 +141,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 2,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,

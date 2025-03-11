@@ -1,14 +1,21 @@
-// app/game/[categoryId]/[levelId].tsx
-
-//angel yo
 import React, { useState } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  Platform,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 // Importa tus componentes de introducción y de juego
 import LevelIntro from '../LevelIntro';
 import ResistenciaNivel1Game from '../ResistenciaNivel1Game';
 import VelocidadNivel1Game from '../VelocidadNivel1Game';
+import FuerzaNivel1Game from '../FuerzaNivel1Game';
+import EquilibrioGame from '../EquilibrioGame.tsx';
 
 function getGameInfo(categoryId: string, levelId: string) {
   switch (categoryId) {
@@ -24,14 +31,38 @@ function getGameInfo(categoryId: string, levelId: string) {
         default:
           return null;
       }
-    case '5': // Velocidad
+    case '2': // Fuerza
+      switch (levelId) {
+        case '1':
+          return {
+            title: 'Nivel 1 - Fuerza',
+            description:
+              'En este minijuego de Fuerza, se cuentan tus sentadillas basadas en el movimiento del teléfono. Cuando bajes el dispositivo (simulando una sentadilla), se reproducirá la animación y se contará la repetición.',
+            gameComponent: <FuerzaNivel1Game />,
+          };
+        default:
+          return null;
+      }
+    case '3': // Velocidad
       switch (levelId) {
         case '1':
           return {
             title: 'Nivel 1 - Velocidad',
             description:
-              'En este minijuego de velocidad, deberás realizar saltos de tijera con el teléfono en la mano. Cada salto se contará y sonará un beep. ¡Tienes 30 segundos para lograr la mayor cantidad de repeticiones!',
+              'En este minijuego de Velocidad, deberás realizar saltos de tijera con el teléfono en la mano. Cada salto se contará y sonará un beep. ¡Tienes 30 segundos para lograr la mayor cantidad de repeticiones!',
             gameComponent: <VelocidadNivel1Game />,
+          };
+        default:
+          return null;
+      }
+    case '4': // Equilibrio
+      switch (levelId) {
+        case '1':
+          return {
+            title: 'Nivel 1 - Equilibrio',
+            description:
+              'En este minijuego de Equilibrio, si te mueves, pierdes 1 vida y, al perder las 3 vidas, se acaba el tiempo. ¡Trata de llegar al mayor tiempo posible!',
+            gameComponent: <EquilibrioGame />,
           };
         default:
           return null;
@@ -44,7 +75,6 @@ function getGameInfo(categoryId: string, levelId: string) {
 export default function LevelScreen() {
   const { categoryId, levelId } = useLocalSearchParams();
   const router = useRouter();
-
   const gameInfo = getGameInfo(categoryId as string, levelId as string);
   const [showIntro, setShowIntro] = useState(true);
 
@@ -89,7 +119,8 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 10, // Separa un poco del área de notificaciones
+    // Aseguramos que se respete el área de la barra de notificaciones:
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   backButton: {
     padding: 16,

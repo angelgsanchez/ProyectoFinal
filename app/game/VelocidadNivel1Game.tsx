@@ -74,11 +74,19 @@ export default function VelocidadNivel1Game() {
 
   // Animar los frames del corredor cada 100ms
   useEffect(() => {
-    const interval = setInterval(() => {
-      setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
-    }, 100);
-    return () => clearInterval(interval);
+    let animationInterval: NodeJS.Timeout;
+    const delayTimeout = setTimeout(() => {
+      animationInterval = setInterval(() => {
+        setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
+      }, 100);
+    }, 200); // Retraso de 200 ms (ajusta según lo necesites)
+    
+    return () => {
+      clearTimeout(delayTimeout);
+      clearInterval(animationInterval);
+    };
   }, []);
+  
 
   // Cronómetro de cuenta regresiva de 30 seg
   useEffect(() => {

@@ -15,10 +15,9 @@ import { Audio } from 'expo-av';
 import Cronometro from './Cronometro';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-// Se asume que la imagen original del mapa es 6325x3514, pero queremos mostrar una "ventana" de 624x1111.
-// Al escalar para que la altura sea 1111, el ancho resultante será aproximadamente 1999.
-const MAP_WIDTH = 1999;
-const MAP_HEIGHT = 1111;
+
+const MAP_WIDTH = 1000;
+const MAP_HEIGHT = 800;
 
 // Array de frames del corredor (suponiendo que tienes 19 frames)
 const RUNNER_FRAMES = [
@@ -66,11 +65,19 @@ function AnimatedMap() {
 
   // Animar los frames del corredor cada 100ms
   useEffect(() => {
-    const interval = setInterval(() => {
-      setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
-    }, 100);
-    return () => clearInterval(interval);
+    let animationInterval: NodeJS.Timeout;
+    const delayTimeout = setTimeout(() => {
+      animationInterval = setInterval(() => {
+        setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
+      }, 100);
+    }, 200); // Retraso de 200 ms (ajusta según lo necesites)
+    
+    return () => {
+      clearTimeout(delayTimeout);
+      clearInterval(animationInterval);
+    };
   }, []);
+  
 
   return (
     <View style={styles.animatedMapContainer}>
@@ -81,11 +88,11 @@ function AnimatedMap() {
       ]}
     >
       <Image
-        source={require('../../assets/images/bigMap.jpg')}
+        source={require('../../assets/images/bigMap3.jpg')}
         style={styles.mapImage}
       />
       <Image
-        source={require('../../assets/images/bigMap.jpg')}
+        source={require('../../assets/images/bigMap3.jpg')}
         style={styles.mapImage}
       />
     </Animated.View>
@@ -275,7 +282,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 10, // Separa un poco de la barra de notificaciones
+    paddingTop: 10, 
   },
   animatedMapContainer: {
     width: SCREEN_WIDTH,
@@ -298,9 +305,9 @@ const styles = StyleSheet.create({
   },
   runner: {
     position: 'absolute',
-    width: 180,    // Aumentado de 120
-    height: 180,   // Aumentado de 120
-    bottom: 50,    // Ajusta la posición vertical
+    width: 175,    // Aumentado de 120
+    height: 175,   // Aumentado de 120
+    bottom: 80,    // Ajusta la posición vertical
     left: SCREEN_WIDTH / 2 - 75, // Centrado (150/2 = 75)
   },
   timerOverlay: {
