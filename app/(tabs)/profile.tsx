@@ -6,9 +6,7 @@ export default function ProfileScreen() {
       <Text style={styles.title}>Perfil</Text>
       <View style={styles.content}>
         <Text style={styles.subtitle}>Próximamente</Text>
-        <Text style={styles.description}>
-          Aquí podrás ver y editar tu perfil, así como tu progreso en cada categoría.
-        </Text>
+        
       </View>
     </ScrollView>
   );

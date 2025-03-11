@@ -3,9 +3,12 @@ import { Chrome as Home, Trophy, ChartBar as BarChart2, User } from 'lucide-reac
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AntDesign from '@expo/vector-icons/AntDesign';
+import AuthProvider from '../../providers/AuthProvider';
+
 
 export default function TabLayout() {
   return (
+    <AuthProvider>
     <SafeAreaView style={styles.safeArea}>
       <Tabs
         screenOptions={{
@@ -46,6 +49,7 @@ export default function TabLayout() {
         />
       </Tabs>
     </SafeAreaView>
+    </AuthProvider>
   );
 }
 

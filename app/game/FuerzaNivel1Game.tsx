@@ -198,9 +198,9 @@ const styles = StyleSheet.create({
   },
   character: {
     position: 'absolute',
-    bottom: 50, // Ubica al personaje en la "carretera" del fondo
-    width: 300,
-    height: 300,
+    bottom: 25, // Ubica al personaje en la "carretera" del fondo
+    width: 350,
+    height: 350,
     resizeMode: 'contain',
     left: SCREEN_W / 2 - 150, // Centrado para un ancho de 300
   },

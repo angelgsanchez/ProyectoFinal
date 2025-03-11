@@ -7,7 +7,6 @@ export default function StatsScreen() {
       <View style={styles.content}>
         <Text style={styles.subtitle}>Próximamente</Text>
         <Text style={styles.description}>
-          Aquí podrás ver tus estadísticas y progreso en cada categoría.
         </Text>
       </View>
     </ScrollView>

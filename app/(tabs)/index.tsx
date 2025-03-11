@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Inter_700Bold',
-    fontSize: 26,
+    fontSize: 20,
     color: '#FFF',
     textAlign: 'center',
   },
