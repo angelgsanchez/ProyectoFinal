@@ -35,7 +35,7 @@ export default function AuthProvider(props:Props){
             if(data.session){
                 setSession(data.session);
             }else{
-                router.replace("/login" as never);
+                router.replace("/signin" as never);
             }
 
             setLoading(false);
@@ -50,7 +50,7 @@ export default function AuthProvider(props:Props){
             if(session){
                 router.replace("/") 
             }else{
-                router.replace("/login" as never)
+                router.replace("/signin" as never)
             }
         })
 

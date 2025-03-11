@@ -62,12 +62,12 @@ export default function LoginScreen() {
 
   return (
     <ImageBackground
-      source={require('../../../assets/images/gym.png')}
+      source={require('../../../assets/images/gym.jpeg')}
       style={styles.background}
     >
       <LinearGradient colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.8)']} style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>Deportes</Text>
+          <Text style={styles.title}>Entrenamiento Interactivo</Text>
 
           {/* Formulario */}
           <View style={styles.inputContainer}>
