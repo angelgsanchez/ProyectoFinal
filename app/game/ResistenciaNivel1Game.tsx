@@ -12,15 +12,17 @@ import {
 } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
+import { useRouter } from 'expo-router'; // Importar useRouter
 import Cronometro from './Cronometro';
+import { supabase } from '@/lib/supabaseClient';
+import { updateAchievementProgress } from '@/lib/achievementsService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-// Se asume que la imagen original del mapa es 6325x3514, pero queremos mostrar una "ventana" de 624x1111.
-// Al escalar para que la altura sea 1111, el ancho resultante será aproximadamente 1999.
-const MAP_WIDTH = 1999;
-const MAP_HEIGHT = 1111;
 
-// Array de frames del corredor (suponiendo que tienes 19 frames)
+const MAP_WIDTH = 1000;
+const MAP_HEIGHT = 800;
+
+// Array de frames del corredor
 const RUNNER_FRAMES = [
   require('../../assets/images/frames/0.gif'),
   require('../../assets/images/frames/1.gif'),
@@ -43,7 +45,6 @@ const RUNNER_FRAMES = [
   require('../../assets/images/frames/18.gif'),
 ];
 
-// Componente interno para animar el mapa y el corredor
 function AnimatedMap() {
   const mapX = useRef(new Animated.Value(0)).current;
   const [frameIndex, setFrameIndex] = useState(0);
@@ -63,52 +64,54 @@ function AnimatedMap() {
     scrollLoop();
   }, [mapX]);
 
-
-  // Animar los frames del corredor cada 100ms
+  // Animar los frames del corredor cada 100ms, con un pequeño retraso inicial
   useEffect(() => {
-    const interval = setInterval(() => {
-      setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
-    }, 100);
-    return () => clearInterval(interval);
+    let animationInterval: NodeJS.Timeout;
+    const delayTimeout = setTimeout(() => {
+      animationInterval = setInterval(() => {
+        setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
+      }, 100);
+    }, 200);
+
+    return () => {
+      clearTimeout(delayTimeout);
+      clearInterval(animationInterval);
+    };
   }, []);
 
   return (
     <View style={styles.animatedMapContainer}>
       <Animated.View
-      style={[
-        styles.scrollingContainer,
-        { transform: [{ translateX: mapX }] },
-      ]}
-    >
-      <Image
-        source={require('../../assets/images/bigMap.jpg')}
-        style={styles.mapImage}
-      />
-      <Image
-        source={require('../../assets/images/bigMap.jpg')}
-        style={styles.mapImage}
-      />
-    </Animated.View>
+        style={[
+          styles.scrollingContainer,
+          { transform: [{ translateX: mapX }] },
+        ]}
+      >
+        <Image
+          source={require('../../assets/images/bigMap3.jpg')}
+          style={styles.mapImage}
+        />
+        <Image
+          source={require('../../assets/images/bigMap3.jpg')}
+          style={styles.mapImage}
+        />
+      </Animated.View>
       {/* Corredor animado */}
-      <Image
-        source={RUNNER_FRAMES[frameIndex]}
-        style={styles.runner}
-      />
+      <Image source={RUNNER_FRAMES[frameIndex]} style={styles.runner} />
     </View>
   );
 }
 
 export default function ResistenciaNivel1Game() {
-  // ESTADOS PRINCIPALES
+  const router = useRouter(); // Para navegar
+
   const [introVisible, setIntroVisible] = useState(true);
   const [countdown, setCountdown] = useState(5);
   const [testStarted, setTestStarted] = useState(false);
   const [raceEnded, setRaceEnded] = useState(false);
-
   const [stillTime, setStillTime] = useState(0);
   const [finalWarning, setFinalWarning] = useState<number | null>(null);
   const [finalTime, setFinalTime] = useState(0);
-
   const [sound, setSound] = useState<Audio.Sound | null>(null);
 
   // Cargar sonido countdown.mp3
@@ -160,11 +163,12 @@ export default function ResistenciaNivel1Game() {
     }
   }, [introVisible, countdown, testStarted, sound]);
 
-  // Detección de inmovilidad
+  // Detección de inmovilidad con acelerómetro
   useEffect(() => {
     if (testStarted && !raceEnded) {
       const subscription = Accelerometer.addListener((data) => {
         const totalAccel = Math.sqrt(data.x ** 2 + data.y ** 2 + data.z ** 2);
+        // Consideramos “quieto” si totalAccel < 1.2
         if (totalAccel < 1.2) {
           setStillTime((prev) => prev + 0.5);
         } else {
@@ -180,7 +184,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [testStarted, raceEnded, finalWarning, sound]);
 
-  // Activar advertencia final si inmóvil 2s
+  // Activar advertencia final si el usuario está inmóvil 2s
   useEffect(() => {
     if (stillTime >= 2 && finalWarning === null && !raceEnded && testStarted) {
       setFinalWarning(5);
@@ -196,7 +200,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [stillTime, finalWarning, raceEnded, testStarted, sound]);
 
-  // Decrementar advertencia
+  // Disminuir la advertencia y terminar juego
   useEffect(() => {
     let warningInterval: NodeJS.Timeout | null = null;
     if (finalWarning !== null && finalWarning > 0 && !raceEnded) {
@@ -211,6 +215,20 @@ export default function ResistenciaNivel1Game() {
     };
   }, [finalWarning, raceEnded]);
 
+  // Al terminar el juego, actualizar logros en Supabase
+  useEffect(() => {
+    if (raceEnded) {
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Para Resistencia (categoría "1"), es acumulativo
+          updateAchievementProgress(user.id, '1', 1, finalTime, true);
+        }
+      })();
+    }
+  }, [raceEnded, finalTime]);
+
+  // Callback para el cronómetro
   const handleTimeChange = (timeInSeconds: number) => {
     if (!raceEnded) {
       setFinalTime(timeInSeconds);
@@ -226,20 +244,37 @@ export default function ResistenciaNivel1Game() {
         .toString()
         .padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
     } else {
-      return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
+      return `${mm.toString().padStart(2, '0')}:${ss
+        .toString()
+        .padStart(2, '0')}`;
     }
   }
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      {raceEnded ? (
+  // Si el juego terminó, mostrar pantalla de resultados con el botón "Volver"
+  if (raceEnded) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.resultContainer}>
           <Text style={styles.resultTitle}>¡Carrera Terminada!</Text>
           <Text style={styles.resultText}>
             Tiempo activo: {formatTime(finalTime)}
           </Text>
+
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.replace('/category/1')}
+          >
+            <Text style={styles.backButtonText}>Volver</Text>
+          </TouchableOpacity>
         </View>
-      ) : introVisible ? (
+      </SafeAreaView>
+    );
+  }
+
+  // Mientras no haya terminado, mostramos el contenido normal
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      {introVisible ? (
         <View style={styles.content}>
           <Text style={styles.title}>Comienza tu trote estático, ¡prepárate!</Text>
         </View>
@@ -250,12 +285,14 @@ export default function ResistenciaNivel1Game() {
       ) : (
         <>
           <AnimatedMap />
+          {/* Cronómetro en overlay */}
           <View style={styles.timerOverlay}>
             <Cronometro
               isRunning={testStarted && !raceEnded}
               onTimeChange={handleTimeChange}
             />
           </View>
+          {/* Si está la advertencia activa, mostrar overlay */}
           {finalWarning !== null && (
             <View style={styles.overlayContainer}>
               <Text style={styles.warningText}>
@@ -275,7 +312,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 10, // Separa un poco de la barra de notificaciones
+    paddingTop: 10,
   },
   animatedMapContainer: {
     width: SCREEN_WIDTH,
@@ -286,11 +323,6 @@ const styles = StyleSheet.create({
   scrollingContainer: {
     flexDirection: 'row',
   },
-  animatedMap: {
-    position: 'absolute',
-    width: MAP_WIDTH,
-    height: MAP_HEIGHT,
-  },
   mapImage: {
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
@@ -298,10 +330,10 @@ const styles = StyleSheet.create({
   },
   runner: {
     position: 'absolute',
-    width: 180,    // Aumentado de 120
-    height: 180,   // Aumentado de 120
-    bottom: 50,    // Ajusta la posición vertical
-    left: SCREEN_WIDTH / 2 - 75, // Centrado (150/2 = 75)
+    width: 175,
+    height: 175,
+    bottom: 80,
+    left: SCREEN_WIDTH / 2 - 75,
   },
   timerOverlay: {
     position: 'absolute',
@@ -331,7 +363,10 @@ const styles = StyleSheet.create({
   },
   overlayContainer: {
     position: 'absolute',
-    top: 0, bottom: 0, left: 0, right: 0,
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 20,
@@ -363,5 +398,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#FF4757',
     textAlign: 'center',
+    marginBottom: 30,
+  },
+  backButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

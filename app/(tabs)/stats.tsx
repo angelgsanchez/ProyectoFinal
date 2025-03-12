@@ -7,7 +7,6 @@ export default function StatsScreen() {
       <View style={styles.content}>
         <Text style={styles.subtitle}>Próximamente</Text>
         <Text style={styles.description}>
-          Aquí podrás ver tus estadísticas y progreso en cada categoría.
         </Text>
       </View>
     </ScrollView>
@@ -17,7 +16,7 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#0F172A',
   },
   title: {
     fontFamily: 'Inter_700Bold',
@@ -25,7 +24,7 @@ const styles = StyleSheet.create({
     marginTop: 60,
     marginBottom: 20,
     paddingHorizontal: 16,
-    color: '#000',
+    color: '#FFF50A',
   },
   content: {
     padding: 16,
@@ -34,7 +33,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 20,
     marginBottom: 8,
-    color: '#000',
+    color: '#FFF50A',
   },
   description: {
     fontFamily: 'Inter_400Regular',
