@@ -133,10 +133,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
 
-          <Text style={styles.signInText}>
-            ¿Ya tienes una cuenta?{' '}
-            <Text style={styles.signInLink}>Inicia sesión aquí</Text>
-          </Text>
+          
         </View>
       </LinearGradient>
     </ImageBackground>
