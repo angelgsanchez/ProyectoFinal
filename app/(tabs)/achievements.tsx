@@ -157,8 +157,8 @@ export default function AchievementsScreen() {
               <Text style={styles.categoryText}>
                 {ach.category === '1' ? 'Resistencia'
                   : ach.category === '2' ? 'Fuerza'
-                  : ach.category === '3' ? 'Velocidad'
-                  : 'Equilibrio'}
+                    : ach.category === '3' ? 'Velocidad'
+                      : 'Equilibrio'}
               </Text>
               <Text
                 style={[styles.statusText, isComplete && styles.completeText]}
@@ -185,8 +185,8 @@ export default function AchievementsScreen() {
                 {ach.claimed
                   ? 'Reclamado'
                   : isComplete
-                  ? 'Reclamar'
-                  : 'En progreso'}
+                    ? 'Reclamar'
+                    : 'En progreso'}
               </Text>
             </TouchableOpacity>
           </View>
