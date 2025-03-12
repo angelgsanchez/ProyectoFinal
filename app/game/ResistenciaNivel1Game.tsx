@@ -13,13 +13,15 @@ import {
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
 import Cronometro from './Cronometro';
+import { supabase } from '@/lib/supabaseClient';
+import { updateAchievementProgress } from '@/lib/achievementsService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 800;
 
-// Array de frames del corredor (suponiendo que tienes 19 frames)
+// Array de frames del corredor
 const RUNNER_FRAMES = [
   require('../../assets/images/frames/0.gif'),
   require('../../assets/images/frames/1.gif'),
@@ -42,7 +44,6 @@ const RUNNER_FRAMES = [
   require('../../assets/images/frames/18.gif'),
 ];
 
-// Componente interno para animar el mapa y el corredor
 function AnimatedMap() {
   const mapX = useRef(new Animated.Value(0)).current;
   const [frameIndex, setFrameIndex] = useState(0);
@@ -62,60 +63,52 @@ function AnimatedMap() {
     scrollLoop();
   }, [mapX]);
 
-
-  // Animar los frames del corredor cada 100ms
+  // Animar los frames del corredor cada 100ms, con un pequeño retraso inicial para evitar titileo
   useEffect(() => {
     let animationInterval: NodeJS.Timeout;
     const delayTimeout = setTimeout(() => {
       animationInterval = setInterval(() => {
         setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
       }, 100);
-    }, 200); // Retraso de 200 ms (ajusta según lo necesites)
-    
+    }, 200); // Retraso de 200 ms
+
     return () => {
       clearTimeout(delayTimeout);
       clearInterval(animationInterval);
     };
   }, []);
-  
 
   return (
     <View style={styles.animatedMapContainer}>
       <Animated.View
-      style={[
-        styles.scrollingContainer,
-        { transform: [{ translateX: mapX }] },
-      ]}
-    >
-      <Image
-        source={require('../../assets/images/bigMap3.jpg')}
-        style={styles.mapImage}
-      />
-      <Image
-        source={require('../../assets/images/bigMap3.jpg')}
-        style={styles.mapImage}
-      />
-    </Animated.View>
+        style={[
+          styles.scrollingContainer,
+          { transform: [{ translateX: mapX }] },
+        ]}
+      >
+        <Image
+          source={require('../../assets/images/bigMap3.jpg')}
+          style={styles.mapImage}
+        />
+        <Image
+          source={require('../../assets/images/bigMap3.jpg')}
+          style={styles.mapImage}
+        />
+      </Animated.View>
       {/* Corredor animado */}
-      <Image
-        source={RUNNER_FRAMES[frameIndex]}
-        style={styles.runner}
-      />
+      <Image source={RUNNER_FRAMES[frameIndex]} style={styles.runner} />
     </View>
   );
 }
 
 export default function ResistenciaNivel1Game() {
-  // ESTADOS PRINCIPALES
   const [introVisible, setIntroVisible] = useState(true);
   const [countdown, setCountdown] = useState(5);
   const [testStarted, setTestStarted] = useState(false);
   const [raceEnded, setRaceEnded] = useState(false);
-
   const [stillTime, setStillTime] = useState(0);
   const [finalWarning, setFinalWarning] = useState<number | null>(null);
   const [finalTime, setFinalTime] = useState(0);
-
   const [sound, setSound] = useState<Audio.Sound | null>(null);
 
   // Cargar sonido countdown.mp3
@@ -167,7 +160,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [introVisible, countdown, testStarted, sound]);
 
-  // Detección de inmovilidad
+  // Detección de inmovilidad con acelerómetro
   useEffect(() => {
     if (testStarted && !raceEnded) {
       const subscription = Accelerometer.addListener((data) => {
@@ -187,7 +180,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [testStarted, raceEnded, finalWarning, sound]);
 
-  // Activar advertencia final si inmóvil 2s
+  // Activar advertencia final si el usuario está inmóvil 2s
   useEffect(() => {
     if (stillTime >= 2 && finalWarning === null && !raceEnded && testStarted) {
       setFinalWarning(5);
@@ -203,7 +196,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [stillTime, finalWarning, raceEnded, testStarted, sound]);
 
-  // Decrementar advertencia
+  // Decrementar advertencia y terminar juego
   useEffect(() => {
     let warningInterval: NodeJS.Timeout | null = null;
     if (finalWarning !== null && finalWarning > 0 && !raceEnded) {
@@ -218,6 +211,22 @@ export default function ResistenciaNivel1Game() {
     };
   }, [finalWarning, raceEnded]);
 
+  // Nueva effect para actualizar logros cuando se termine el juego
+// Actualización de logros cuando termina el juego
+useEffect(() => {
+  if (raceEnded) {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Para Resistencia (categoría "1"), se acumula el tiempo total de trote.
+        updateAchievementProgress(user.id, '1', 1, finalTime, true);
+      }
+    })();
+  }
+}, [raceEnded, finalTime]);
+
+
+  // Callback para el cronómetro
   const handleTimeChange = (timeInSeconds: number) => {
     if (!raceEnded) {
       setFinalTime(timeInSeconds);
@@ -229,9 +238,7 @@ export default function ResistenciaNivel1Game() {
     const mm = Math.floor((seconds % 3600) / 60);
     const ss = seconds % 60;
     if (hh > 0) {
-      return `${hh.toString().padStart(2, '0')}:${mm
-        .toString()
-        .padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
+      return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
     } else {
       return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
     }
@@ -282,7 +289,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 10, 
+    paddingTop: 10,
   },
   animatedMapContainer: {
     width: SCREEN_WIDTH,
@@ -305,10 +312,10 @@ const styles = StyleSheet.create({
   },
   runner: {
     position: 'absolute',
-    width: 175,    // Aumentado de 120
-    height: 175,   // Aumentado de 120
-    bottom: 80,    // Ajusta la posición vertical
-    left: SCREEN_WIDTH / 2 - 75, // Centrado (150/2 = 75)
+    width: 175,
+    height: 175,
+    bottom: 80,
+    left: SCREEN_WIDTH / 2 - 75,
   },
   timerOverlay: {
     position: 'absolute',
@@ -338,7 +345,10 @@ const styles = StyleSheet.create({
   },
   overlayContainer: {
     position: 'absolute',
-    top: 0, bottom: 0, left: 0, right: 0,
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 20,

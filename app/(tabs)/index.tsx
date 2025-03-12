@@ -36,7 +36,7 @@ export default function HomeScreen() {
         {/* Logo y Encabezado */}
         <View style={styles.header}>
           <Image source={require('../../assets/images/frames/1.gif')} style={styles.logo} />
-          <Text style={styles.title}>Minijuegos de Rutinas</Text>
+          <Text style={styles.title}>Minijuegos     </Text>
         </View>
 
         {/* Tarjetas de Categorías en formato columna (4x1) */}

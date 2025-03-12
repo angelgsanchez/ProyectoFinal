@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   TextInput,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../../lib/supabaseClient';
@@ -21,40 +22,69 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Maneja el registro e inicio de sesión simultáneo
+  // Maneja el registro e inicio de sesión en un mismo formulario
   const handleSignUp = async () => {
+    // Validar que la contraseña tenga al menos 6 caracteres
+    if (password.length < 6) {
+      Alert.alert("Error", "La contraseña debe ser un mínimo de 6 dígitos");
+      return;
+    }
+
     setLoading(true);
     try {
-      // Registrar al usuario
+      // Intentar registrar al usuario
       const { data, error } = await supabase.auth.signUp({ email, password });
+      
       if (error) {
-        console.log('Error al registrarse:', error.message);
-        // Aquí podrías mostrar un mensaje de error en la UI
-      } else {
-        console.log('Usuario registrado:', data.user);
-
-        // Si no se crea automáticamente una sesión, intentar iniciar sesión
-        if (!data.session) {
+        // Si el error indica que el usuario ya está registrado
+        if (error.message.toLowerCase().includes("already registered") ||
+            error.message.toLowerCase().includes("duplicate")) {
+          // Intentar iniciar sesión
           const { data: signInData, error: signInError } =
             await supabase.auth.signInWithPassword({ email, password });
           if (signInError) {
             console.log('Error al iniciar sesión:', signInError.message);
+            Alert.alert("Error", "Contraseña incorrecta");
+            setLoading(false);
+            return;
           }
+        } else {
+          // Otro error
+          console.log('Error al registrarse:', error.message);
+          Alert.alert("Error", error.message);
+          setLoading(false);
+          return;
         }
-        // Extraer el username a partir del email
-        const username = email.split('@')[0];
-        // Actualizar user_metadata con el username
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: { username },
-        });
-        if (updateError) {
-          console.log('Error al actualizar metadata:', updateError.message);
-        }
-        // Una vez autenticado, redirigir al Home
-        router.replace("/");
       }
+      
+      // Si el usuario es nuevo y no se crea automáticamente la sesión, intentar iniciar sesión
+      if (!data.session) {
+        const { data: signInData, error: signInError } =
+          await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          console.log('Error al iniciar sesión:', signInError.message);
+          Alert.alert("Error", signInError.message);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Extraer el username a partir del email (todo lo que está antes del "@")
+      const username = email.split('@')[0];
+      
+      // Actualizar la metadata del usuario con el username
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { username },
+      });
+      if (updateError) {
+        console.log('Error al actualizar metadata:', updateError.message);
+      }
+      
+      // Redirigir al Home
+      router.replace("/");
     } catch (err) {
       console.log('Error en signUp:', err);
+      Alert.alert("Error", "Ocurrió un error al iniciar sesión");
     } finally {
       setLoading(false);
     }
@@ -99,11 +129,14 @@ export default function LoginScreen() {
             <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />
           ) : (
             <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp}>
-              <Text style={styles.signUpButtonText}>Registrate para inciar sesión</Text>
+              <Text style={styles.signUpButtonText}>Regístrate para iniciar sesión</Text>
             </TouchableOpacity>
           )}
 
-          
+          <Text style={styles.signInText}>
+            ¿Ya tienes una cuenta?{' '}
+            <Text style={styles.signInLink}>Inicia sesión aquí</Text>
+          </Text>
         </View>
       </LinearGradient>
     </ImageBackground>

@@ -1,68 +1,168 @@
 // app/achievements.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
+import { supabase } from '@/lib/supabaseClient';
 
-// Ejemplo de datos de logros
-// Podrías obtenerlos de tu backend, AsyncStorage, etc.
-const achievementsData = [
+// Datos fijos de las 4 categorías
+const defaultCategories = [
   {
-    id: '1',
-    category: 'Resistencia',
+    category: '1',
     title: 'Nivel 1 - Resistencia',
     description: 'Mantener trote estático durante 10 minutos',
-    progress: 0.6, // 60%
+    target: 600,
   },
   {
-    id: '2',
-    category: 'Fuerza',
+    category: '2',
     title: 'Nivel 1 - Fuerza',
     description: 'Completar 20 sentadillas',
-    progress: 0.3, // 30%
+    target: 20,
   },
   {
-    id: '3',
-    category: 'Velocidad',
+    category: '3',
     title: 'Nivel 1 - Velocidad',
-    description: 'Realizar 50 saltos en 30 seg',
-    progress: 0.9, // 90%
+    description: 'Realizar 30 saltos en 30 seg',
+    target: 30,
   },
   {
-    id: '4',
-    category: 'Equilibrio',
+    category: '4',
     title: 'Nivel 1 - Equilibrio',
     description: 'Mantenerse sin moverse por 60s',
-    progress: 0.15, // 15%
+    target: 60,
   },
 ];
 
 export default function AchievementsScreen() {
-  const [achievements, setAchievements] = useState(achievementsData);
+  const [mergedAchievements, setMergedAchievements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const handleClaim = (id: string) => {
-    // Lógica para "reclamar" el logro. Por ejemplo, podrías:
-    // - Marcarlo como reclamado en la base de datos
-    // - Actualizar el estado local para reflejar que está reclamado
-    console.log(`Logro ${id} reclamado`);
+  // 1. Función para obtener logros de DB
+  const fetchAchievementsFromDB = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('achievements')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching achievements:', error.message);
+      return [];
+    }
+    return data || [];
   };
 
+  // 2. Función para mezclar data local y la de DB
+  const mergeAchievements = (defaults: any[], dbData: any[]) => {
+    return defaults.map((defCat) => {
+      // Busca en DB
+      const found = dbData.find(
+        (dbAch: any) => dbAch.category === defCat.category && dbAch.level === 1
+      );
+
+      if (found) {
+        const percentage = Math.min((found.progress / found.target) * 100, 100);
+        return {
+          ...defCat,
+          id: found.id,
+          progress: percentage / 100,
+          claimed: found.claimed,
+          completed: found.completed,
+        };
+      } else {
+        // No existe en DB => 0% de progreso
+        return {
+          ...defCat,
+          id: defCat.category,
+          progress: 0,
+          claimed: false,
+          completed: false,
+        };
+      }
+    });
+  };
+
+  // 3. Función para cargar logros del usuario
+  const fetchAllAchievements = async () => {
+    setLoading(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData?.user;
+
+    if (user) {
+      const dbAchievements = await fetchAchievementsFromDB(user.id);
+      const finalData = mergeAchievements(defaultCategories, dbAchievements);
+      setMergedAchievements(finalData);
+    } else {
+      // Si no hay usuario, quizás redirigir o mostrar mensaje
+      setMergedAchievements(defaultCategories); // Muestra placeholders
+    }
+    setLoading(false);
+  };
+
+  // 4. Al montar el componente, carga los logros
+  useEffect(() => {
+    fetchAllAchievements();
+  }, []);
+
+  // 5. Pull-to-refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchAllAchievements().then(() => setRefreshing(false));
+  }, []);
+
+  // 6. Función para “reclamar” el logro
+  const handleClaim = async (achId: string) => {
+    // Ejemplo: marcar claimed = true
+    const { error } = await supabase
+      .from('achievements')
+      .update({ claimed: true })
+      .eq('id', achId);
+    if (error) {
+      console.error('Error al reclamar logro:', error.message);
+    } else {
+      // Vuelve a refrescar
+      fetchAllAchievements();
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Cargando logros...</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <Text style={styles.title}>Logros</Text>
 
-      {achievements.map((ach) => {
+      {mergedAchievements.map((ach) => {
         const isComplete = ach.progress >= 1;
         return (
           <View key={ach.id} style={styles.achievementCard}>
             <View style={styles.headerRow}>
-              <Text style={styles.categoryText}>{ach.category}</Text>
-              {/* Estado de porcentaje */}
-              <Text style={[styles.statusText, isComplete && styles.completeText]}>
+              {/* Nombre “bonito” de la categoría */}
+              <Text style={styles.categoryText}>
+                {ach.category === '1' ? 'Resistencia'
+                  : ach.category === '2' ? 'Fuerza'
+                  : ach.category === '3' ? 'Velocidad'
+                  : 'Equilibrio'}
+              </Text>
+              <Text
+                style={[styles.statusText, isComplete && styles.completeText]}
+              >
                 {Math.round(ach.progress * 100)}%
               </Text>
             </View>
@@ -70,19 +170,23 @@ export default function AchievementsScreen() {
             <Text style={styles.achievementTitle}>{ach.title}</Text>
             <Text style={styles.description}>{ach.description}</Text>
 
-            {/* Barra de progreso */}
             <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBarFill, { width: `${ach.progress * 100}%` }]} />
+              <View
+                style={[styles.progressBarFill, { width: `${ach.progress * 100}%` }]}
+              />
             </View>
 
-            {/* Botón para reclamar (solo si está al 100%) */}
             <TouchableOpacity
-              style={[styles.claimButton, !isComplete && styles.disabledButton]}
-              disabled={!isComplete}
+              style={[styles.claimButton, (!isComplete || ach.claimed) && styles.disabledButton]}
+              disabled={!isComplete || ach.claimed}
               onPress={() => handleClaim(ach.id)}
             >
               <Text style={styles.claimButtonText}>
-                {isComplete ? 'Reclamar' : 'En progreso'}
+                {ach.claimed
+                  ? 'Reclamado'
+                  : isComplete
+                  ? 'Reclamar'
+                  : 'En progreso'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -117,7 +221,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 2,
     borderColor: '#E5E5EA',
-    // Sombra
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -140,7 +243,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   completeText: {
-    color: '#34C759', // Verde cuando está completo
+    color: '#34C759',
   },
   achievementTitle: {
     fontSize: 20,

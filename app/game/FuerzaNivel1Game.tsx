@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 import { useRouter } from 'expo-router';
+import { supabase } from '@/lib/supabaseClient';
+import { updateAchievementProgress } from '@/lib/achievementsService';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -46,14 +48,11 @@ export default function FuerzaNivel1Game() {
   const animationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Función para reproducir la animación completa de sentadilla
-  // Se inicia al tocar la pantalla y solo si no se está animando y el juego no ha finalizado
   const startAnimation = () => {
     if (animating || gameEnded) return;
     setAnimating(true);
     setFrameIndex(0);
     let step = 0;
-  
-    // Retrasar el inicio de la animación para permitir que el componente se estabilice
     const delayTimeout = setTimeout(() => {
       animationIntervalRef.current = setInterval(() => {
         step++;
@@ -65,15 +64,12 @@ export default function FuerzaNivel1Game() {
           setFrameIndex(0); // Regresa a la pose inicial
           setRepCount((prev) => prev + 1);
         }
-      }, 150); // Ajusta la velocidad de la animación según necesites
-    }, 200); // Retraso de 200 ms (ajusta según tus pruebas)
-  
-    // Si necesitas limpiar el timeout en algún cleanup (por ejemplo, si el componente se desmonta antes)
+      }, 150);
+    }, 200); // Retraso de 200 ms
     return () => clearTimeout(delayTimeout);
   };
-  
 
-  // Lógica de acelerómetro para detectar movimiento (opcional si quieres sincronizar con movimiento real)
+  // Lógica de acelerómetro para detectar movimiento
   useEffect(() => {
     const subscription = Accelerometer.addListener((data) => {
       const yValue = data.y;
@@ -87,7 +83,6 @@ export default function FuerzaNivel1Game() {
       }
       // Detecta subida: cuando el valor vuelve a acercarse a baseline (por encima de baseline - DELTA_THRESHOLD/2)
       else if (isDown && yValue > baseline - DELTA_THRESHOLD / 2) {
-        // Si no se está ya animando, se puede iniciar la animación
         if (!animating && !gameEnded) {
           startAnimation();
         }
@@ -102,6 +97,19 @@ export default function FuerzaNivel1Game() {
   const endGame = () => {
     setGameEnded(true);
   };
+
+  // Cuando el juego finaliza, actualizar el logro en Supabase
+  useEffect(() => {
+    if (gameEnded) {
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Categoría "2" para Fuerza, nivel 1, valor acumulativo
+          updateAchievementProgress(user.id, '2', 1, repCount, true);
+        }
+      })();
+    }
+  }, [gameEnded, repCount]);
 
   // Pantalla final: se muestra cuando el usuario presiona "Finalizar"
   if (gameEnded) {
@@ -135,9 +143,7 @@ export default function FuerzaNivel1Game() {
       {/* Área principal para detectar toques */}
       <TouchableWithoutFeedback onPress={startAnimation}>
         <View style={styles.container}>
-          {/* Título */}
           <Text style={styles.title}>Sentadillas</Text>
-          {/* Personaje animado */}
           <Image source={SQUAT_FRAMES[frameIndex]} style={styles.character} />
           <Text style={styles.hint}>Toca la pantalla para realizar la sentadilla</Text>
         </View>
@@ -150,6 +156,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: 10,
   },
   background: {
     position: 'absolute',
@@ -191,7 +198,7 @@ const styles = StyleSheet.create({
   },
   title: {
     position: 'absolute',
-    top: 70, // Un poco debajo del topBar
+    top: 70,
     fontSize: 26,
     fontWeight: '700',
     color: '#000',
@@ -199,10 +206,10 @@ const styles = StyleSheet.create({
   character: {
     position: 'absolute',
     bottom: 25, // Ubica al personaje en la "carretera" del fondo
-    width: 350,
-    height: 350,
+    width: 300,
+    height: 300,
     resizeMode: 'contain',
-    left: SCREEN_W / 2 - 150, // Centrado para un ancho de 300
+    left: SCREEN_W / 2 - 125,
   },
   hint: {
     position: 'absolute',
@@ -241,5 +248,43 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#fff',
     fontWeight: 'bold',
+  },
+  animatedMapContainer: {
+    width: SCREEN_W,
+    height: SCREEN_H,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  scrollingContainer: {
+    flexDirection: 'row',
+  },
+  timerOverlay: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 11,
+  },
+  overlayContainer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+    padding: 16,
+  },
+  warningText: {
+    fontSize: 32,
+    color: 'red',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
 });

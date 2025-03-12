@@ -1,5 +1,5 @@
 // app/game/VelocidadNivel1Game.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
@@ -12,13 +12,15 @@ import {
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
 import Cronometro from './Cronometro';
+import { supabase } from '@/lib/supabaseClient';
+import { updateAchievementProgress } from '@/lib/achievementsService';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 // Umbral para detectar un salto (valor a calibrar)
 const JUMP_THRESHOLD = 2.5;
 
-// Array de frames del corredor (suponiendo que tienes 14 imágenes, de 0.gif a 13.gif)
+// Array de frames del corredor (de 0.gif a 13.gif)
 const RUNNER_FRAMES = [
   require('../../assets/images/velocidad/0.gif'),
   require('../../assets/images/velocidad/1.gif'),
@@ -37,9 +39,8 @@ const RUNNER_FRAMES = [
 ];
 
 export default function VelocidadNivel1Game() {
-  // Eliminamos la lógica de intro porque ya se muestra en el archivo dinámico ([levelId].tsx)
-  // Estados del juego
-  const [testStarted, setTestStarted] = useState(true); // Asumimos que al cargar, el juego ya está iniciado
+  // Estado del juego
+  const [testStarted, setTestStarted] = useState(true); // Supongamos que el juego inicia al cargar
   const [raceEnded, setRaceEnded] = useState(false);
   const [gameTime, setGameTime] = useState(30); // 30 segundos de prueba
   const [repCount, setRepCount] = useState(0);
@@ -47,10 +48,8 @@ export default function VelocidadNivel1Game() {
 
   // Estado para animar el runner
   const [frameIndex, setFrameIndex] = useState(0);
-
   // Estado para evitar conteos dobles (cooldown)
   const [canCount, setCanCount] = useState(true);
-
   // Sonido para beep en cada salto
   const [soundBeep, setSoundBeep] = useState<Audio.Sound | null>(null);
 
@@ -59,7 +58,7 @@ export default function VelocidadNivel1Game() {
     async function loadBeep() {
       try {
         const { sound } = await Audio.Sound.createAsync(
-          require('../../assets/sonidos/beep.mp3')
+          require('../../assets/images/velocidad/beep.mp3')
         );
         setSoundBeep(sound);
       } catch (error) {
@@ -79,14 +78,12 @@ export default function VelocidadNivel1Game() {
       animationInterval = setInterval(() => {
         setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
       }, 100);
-    }, 200); // Retraso de 200 ms (ajusta según lo necesites)
-    
+    }, 200); // Retraso de 200 ms
     return () => {
       clearTimeout(delayTimeout);
       clearInterval(animationInterval);
     };
   }, []);
-  
 
   // Cronómetro de cuenta regresiva de 30 seg
   useEffect(() => {
@@ -125,7 +122,7 @@ export default function VelocidadNivel1Game() {
     }
   }, [testStarted, raceEnded, canCount, soundBeep]);
 
-  // Recibir tiempo del cronómetro
+  // Callback para el cronómetro: actualiza el tiempo final
   const handleTimeChange = (timeInSeconds: number) => {
     if (!raceEnded) {
       setFinalTime(30 - timeInSeconds);
@@ -139,12 +136,24 @@ export default function VelocidadNivel1Game() {
     return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
   }
 
+  // Al finalizar el juego, actualizamos el logro en Supabase
+  useEffect(() => {
+    if (raceEnded) {
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Para Velocidad (categoría "3"), no es acumulativo (false)
+          updateAchievementProgress(user.id, '3', 1, repCount, false);
+        }
+      })();
+    }
+  }, [raceEnded, repCount]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {raceEnded ? (
         <View style={styles.resultContainer}>
           <Text style={styles.resultTitle}>¡Prueba Terminada!</Text>
-          <Text style={styles.resultText}>Tiempo: {formatTime(finalTime)}</Text>
           <Text style={styles.resultText}>Repeticiones: {repCount}</Text>
         </View>
       ) : (
@@ -214,7 +223,7 @@ const styles = StyleSheet.create({
     width: 300, // Más grande
     height: 300, // Más grande
     bottom: 50,
-    left: SCREEN_W / 2 - 125, // Centrado (250/2 = 125)
+    left: SCREEN_W / 2 - 125, // Centrado para un ancho de 250
   },
   resultContainer: {
     flex: 1,

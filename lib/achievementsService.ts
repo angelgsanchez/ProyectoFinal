@@ -1,4 +1,3 @@
-
 import { supabase } from './supabaseClient';
 
 export type Achievement = {
@@ -12,7 +11,7 @@ export type Achievement = {
   claimed: boolean;
 };
 
-// Función para determinar el target en función de la categoría
+// Determina el target (meta) según la categoría
 function getTargetForCategory(category: string): number {
   switch (category) {
     case '1': // Resistencia: 10 minutos = 600 segundos
@@ -29,12 +28,12 @@ function getTargetForCategory(category: string): number {
 }
 
 /**
- * //Actualiza o inserta el logro para un usuario.
- * @param userId //El ID del usuario (uuid).
- * @param category //La categoría del logro ("1", "2", "3", "4").
- * @param level //El nivel 1 logro 
- * @param value //El valor obtenido en el juego (en segundos o repeticiones).
- * @param cumulative //Si es acumulativo (true) o si se toma el valor absoluto (false).
+ * Actualiza o inserta el logro para un usuario.
+ * @param userId - El ID del usuario (uuid).
+ * @param category - La categoría del logro ("1", "2", "3", "4").
+ * @param level - El nivel del logro (por ejemplo, 1).
+ * @param value - El valor obtenido en el juego (en segundos o repeticiones).
+ * @param cumulative - Si es acumulativo (true) o se toma el valor absoluto (false).
  */
 export async function updateAchievementProgress(
   userId: string,
@@ -45,7 +44,7 @@ export async function updateAchievementProgress(
 ) {
   const target = getTargetForCategory(category);
 
-  // Obtener el registro actual del logro para este usuario, categoría y nivel
+  // Intentar obtener el registro actual del logro para este usuario, categoría y nivel
   const { data: currentAchievement, error: fetchError } = await supabase
     .from('achievements')
     .select('*')
@@ -55,7 +54,7 @@ export async function updateAchievementProgress(
     .single();
 
   if (fetchError && fetchError.code === 'PGRST116') {
-    // No existe registro, insertar uno nuevo
+    // No se encontró registro: insertamos uno nuevo
     const newAchievement: Achievement = {
       user_id: userId,
       category,
@@ -73,7 +72,7 @@ export async function updateAchievementProgress(
       console.error('Error al insertar logro:', insertError.message);
     }
   } else if (currentAchievement) {
-    // Registro existente: actualizar el progreso
+    // Registro existente: actualizamos el progreso
     const updatedProgress = cumulative
       ? currentAchievement.progress + value
       : value;
@@ -86,6 +85,7 @@ export async function updateAchievementProgress(
       console.error('Error al actualizar logro:', updateError.message);
     }
   } else {
+    // Otro tipo de error
     console.error('Error al obtener el logro:', fetchError?.message);
   }
 }
