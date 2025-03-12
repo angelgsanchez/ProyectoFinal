@@ -16,7 +16,7 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#FFFF',
   },
   title: {
     fontFamily: 'Inter_700Bold',
@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
     marginTop: 60,
     marginBottom: 20,
     paddingHorizontal: 16,
-    color: '#FFF50A',
+    color: '#000',
   },
   content: {
     padding: 16,
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 20,
     marginBottom: 8,
-    color: '#FFF50A',
+    color: '#000',
   },
   description: {
     fontFamily: 'Inter_400Regular',
