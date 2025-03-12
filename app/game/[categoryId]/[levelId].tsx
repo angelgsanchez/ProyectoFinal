@@ -15,7 +15,7 @@ import LevelIntro from '../LevelIntro';
 import ResistenciaNivel1Game from '../ResistenciaNivel1Game';
 import VelocidadNivel1Game from '../VelocidadNivel1Game';
 import FuerzaNivel1Game from '../FuerzaNivel1Game';
-import EquilibrioGame from '../EquilibrioGame.tsx';
+import EquilibrioGame from '../EquilibrioGame';
 
 function getGameInfo(categoryId: string, levelId: string) {
   switch (categoryId) {
