@@ -7,15 +7,17 @@ import {
   StyleSheet,
   Image,
   Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
+import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
 import { updateAchievementProgress } from '@/lib/achievementsService';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Umbral para detectar un salto (ajusta este valor según pruebas)
+// Umbral para detectar un salto (ajusta este valor según tus pruebas)
 const JUMP_THRESHOLD = 2.5;
 
 // Array de frames del corredor (0.gif a 13.gif)
@@ -37,9 +39,11 @@ const RUNNER_FRAMES = [
 ];
 
 export default function VelocidadNivel1Game() {
+  const router = useRouter();
+
   // Estado del juego
-  const [testStarted] = useState(true); // Asumimos que el juego inicia al cargar
   const [raceEnded, setRaceEnded] = useState(false);
+  const [gameTime, setGameTime] = useState(30); // 30 segundos de juego
   const [repCount, setRepCount] = useState(0);
   const [frameIndex, setFrameIndex] = useState(0);
   const [canCount, setCanCount] = useState(true);
@@ -50,7 +54,8 @@ export default function VelocidadNivel1Game() {
     async function loadBeep() {
       try {
         const { sound } = await Audio.Sound.createAsync(
-          require('../../assets/images/velocidad/beep.mp3')
+          
+          require('../../assets/sonidos/beep.mp3')
         );
         setSoundBeep(sound);
       } catch (error) {
@@ -63,7 +68,7 @@ export default function VelocidadNivel1Game() {
     };
   }, []);
 
-  // Animar los frames del corredor cada 100ms con un pequeño retraso para evitar titileo
+  // Animar los frames del corredor cada 100ms con un pequeño retraso
   useEffect(() => {
     let animationInterval: NodeJS.Timeout;
     const delayTimeout = setTimeout(() => {
@@ -77,9 +82,21 @@ export default function VelocidadNivel1Game() {
     };
   }, []);
 
-  // Detección de saltos mediante acelerómetro
+  // Cronómetro de cuenta regresiva: disminuye gameTime cada segundo y finaliza el juego cuando llega a 0
   useEffect(() => {
-    if (testStarted && !raceEnded) {
+    if (!raceEnded && gameTime > 0) {
+      const timer = setTimeout(() => {
+        setGameTime((prev) => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (gameTime === 0) {
+      setRaceEnded(true);
+    }
+  }, [gameTime, raceEnded]);
+
+  // Detección de saltos con acelerómetro
+  useEffect(() => {
+    if (!raceEnded) {
       const subscription = Accelerometer.addListener((data) => {
         const totalAccel = Math.sqrt(data.x ** 2 + data.y ** 2 + data.z ** 2);
         if (totalAccel > JUMP_THRESHOLD && canCount) {
@@ -101,10 +118,9 @@ export default function VelocidadNivel1Game() {
       Accelerometer.setUpdateInterval(100);
       return () => subscription.remove();
     }
-  }, [testStarted, raceEnded, canCount, soundBeep]);
+  }, [canCount, soundBeep, raceEnded]);
 
-  // Al finalizar el juego (por ejemplo, cuando se acaben los 30 seg) se actualiza el logro en Supabase.
-  // En este ejemplo, usamos el repCount para la actualización.
+  // Cuando el juego finaliza, se actualiza el logro en Supabase usando repCount
   useEffect(() => {
     if (raceEnded) {
       (async () => {
@@ -117,31 +133,52 @@ export default function VelocidadNivel1Game() {
     }
   }, [raceEnded, repCount]);
 
+  // Formatear tiempo (MM:SS) para mostrar el contador
+  function formatTime(seconds: number): string {
+    const mm = Math.floor(seconds / 60);
+    const ss = seconds % 60;
+    return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
+  }
+
+  // Si el juego terminó, mostrar la pantalla final con el botón de “Volver”
+  if (raceEnded) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.resultContainer}>
+          <Text style={styles.resultTitle}>¡Juego Finalizado!</Text>
+          <Text style={styles.resultText}>Repeticiones: {repCount}</Text>
+
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.replace('/category/3')}
+          >
+            <Text style={styles.backButtonText}>Volver</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Mientras el juego está activo, muestra el fondo, el cronómetro y las repeticiones
   return (
     <SafeAreaView style={styles.safeArea}>
-      {raceEnded ? (
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultTitle}>¡Prueba Terminada!</Text>
-          <Text style={styles.resultText}>Repeticiones: {repCount}</Text>
-        </View>
-      ) : (
-        <>
-          {/* Fondo */}
-          <Image
-            source={require('../../assets/images/velocidadBackground.jpg')}
-            style={styles.background}
-          />
-          {/* Contador de repeticiones */}
-          <View style={styles.repCounterOverlay}>
-            <Text style={styles.repCounterText}>Reps: {repCount}</Text>
-          </View>
-          {/* Corredor animado */}
-          <Image
-            source={RUNNER_FRAMES[frameIndex]}
-            style={styles.runner}
-          />
-        </>
-      )}
+      <Image
+        source={require('../../assets/images/velocidadBackground.jpg')}
+        style={styles.background}
+      />
+      {/* Cronómetro en overlay */}
+      <View style={styles.timerOverlay}>
+        <Text style={styles.timerText}>Tiempo restante: {formatTime(gameTime)}</Text>
+      </View>
+      {/* Contador de repeticiones */}
+      <View style={styles.repCounterOverlay}>
+        <Text style={styles.repCounterText}>Reps: {repCount}</Text>
+      </View>
+      {/* Corredor animado */}
+      <Image
+        source={RUNNER_FRAMES[frameIndex]}
+        style={styles.runner}
+      />
     </SafeAreaView>
   );
 }
@@ -158,6 +195,19 @@ const styles = StyleSheet.create({
     height: SCREEN_H,
     resizeMode: 'cover',
   },
+  timerOverlay: {
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 11,
+  },
+  timerText: {
+    fontSize: 24,
+    color: '#F9E37C',
+    fontWeight: 'bold',
+  },
   repCounterOverlay: {
     position: 'absolute',
     top: 140,
@@ -168,7 +218,7 @@ const styles = StyleSheet.create({
   },
   repCounterText: {
     fontSize: 32,
-    color: '#000',
+    color: '#F3464A',
     fontWeight: 'bold',
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 2, height: 2 },
@@ -197,5 +247,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#FF4757',
     textAlign: 'center',
+    marginBottom: 30,
+  },
+  backButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
+import { useRouter } from 'expo-router'; // Importar useRouter
 import Cronometro from './Cronometro';
 import { supabase } from '@/lib/supabaseClient';
 import { updateAchievementProgress } from '@/lib/achievementsService';
@@ -63,14 +64,14 @@ function AnimatedMap() {
     scrollLoop();
   }, [mapX]);
 
-  // Animar los frames del corredor cada 100ms, con un pequeño retraso inicial para evitar titileo
+  // Animar los frames del corredor cada 100ms, con un pequeño retraso inicial
   useEffect(() => {
     let animationInterval: NodeJS.Timeout;
     const delayTimeout = setTimeout(() => {
       animationInterval = setInterval(() => {
         setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
       }, 100);
-    }, 200); // Retraso de 200 ms
+    }, 200);
 
     return () => {
       clearTimeout(delayTimeout);
@@ -102,6 +103,8 @@ function AnimatedMap() {
 }
 
 export default function ResistenciaNivel1Game() {
+  const router = useRouter(); // Para navegar
+
   const [introVisible, setIntroVisible] = useState(true);
   const [countdown, setCountdown] = useState(5);
   const [testStarted, setTestStarted] = useState(false);
@@ -165,6 +168,7 @@ export default function ResistenciaNivel1Game() {
     if (testStarted && !raceEnded) {
       const subscription = Accelerometer.addListener((data) => {
         const totalAccel = Math.sqrt(data.x ** 2 + data.y ** 2 + data.z ** 2);
+        // Consideramos “quieto” si totalAccel < 1.2
         if (totalAccel < 1.2) {
           setStillTime((prev) => prev + 0.5);
         } else {
@@ -196,7 +200,7 @@ export default function ResistenciaNivel1Game() {
     }
   }, [stillTime, finalWarning, raceEnded, testStarted, sound]);
 
-  // Decrementar advertencia y terminar juego
+  // Disminuir la advertencia y terminar juego
   useEffect(() => {
     let warningInterval: NodeJS.Timeout | null = null;
     if (finalWarning !== null && finalWarning > 0 && !raceEnded) {
@@ -211,20 +215,18 @@ export default function ResistenciaNivel1Game() {
     };
   }, [finalWarning, raceEnded]);
 
-  // Nueva effect para actualizar logros cuando se termine el juego
-// Actualización de logros cuando termina el juego
-useEffect(() => {
-  if (raceEnded) {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Para Resistencia (categoría "1"), se acumula el tiempo total de trote.
-        updateAchievementProgress(user.id, '1', 1, finalTime, true);
-      }
-    })();
-  }
-}, [raceEnded, finalTime]);
-
+  // Al terminar el juego, actualizar logros en Supabase
+  useEffect(() => {
+    if (raceEnded) {
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Para Resistencia (categoría "1"), es acumulativo
+          updateAchievementProgress(user.id, '1', 1, finalTime, true);
+        }
+      })();
+    }
+  }, [raceEnded, finalTime]);
 
   // Callback para el cronómetro
   const handleTimeChange = (timeInSeconds: number) => {
@@ -238,22 +240,41 @@ useEffect(() => {
     const mm = Math.floor((seconds % 3600) / 60);
     const ss = seconds % 60;
     if (hh > 0) {
-      return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
+      return `${hh.toString().padStart(2, '0')}:${mm
+        .toString()
+        .padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
     } else {
-      return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
+      return `${mm.toString().padStart(2, '0')}:${ss
+        .toString()
+        .padStart(2, '0')}`;
     }
   }
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      {raceEnded ? (
+  // Si el juego terminó, mostrar pantalla de resultados con el botón "Volver"
+  if (raceEnded) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.resultContainer}>
           <Text style={styles.resultTitle}>¡Carrera Terminada!</Text>
           <Text style={styles.resultText}>
             Tiempo activo: {formatTime(finalTime)}
           </Text>
+
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.replace('/category/1')}
+          >
+            <Text style={styles.backButtonText}>Volver</Text>
+          </TouchableOpacity>
         </View>
-      ) : introVisible ? (
+      </SafeAreaView>
+    );
+  }
+
+  // Mientras no haya terminado, mostramos el contenido normal
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      {introVisible ? (
         <View style={styles.content}>
           <Text style={styles.title}>Comienza tu trote estático, ¡prepárate!</Text>
         </View>
@@ -264,12 +285,14 @@ useEffect(() => {
       ) : (
         <>
           <AnimatedMap />
+          {/* Cronómetro en overlay */}
           <View style={styles.timerOverlay}>
             <Cronometro
               isRunning={testStarted && !raceEnded}
               onTimeChange={handleTimeChange}
             />
           </View>
+          {/* Si está la advertencia activa, mostrar overlay */}
           {finalWarning !== null && (
             <View style={styles.overlayContainer}>
               <Text style={styles.warningText}>
@@ -299,11 +322,6 @@ const styles = StyleSheet.create({
   },
   scrollingContainer: {
     flexDirection: 'row',
-  },
-  animatedMap: {
-    position: 'absolute',
-    width: MAP_WIDTH,
-    height: MAP_HEIGHT,
   },
   mapImage: {
     width: MAP_WIDTH,
@@ -380,5 +398,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#FF4757',
     textAlign: 'center',
+    marginBottom: 30,
+  },
+  backButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

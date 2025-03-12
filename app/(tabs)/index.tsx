@@ -7,17 +7,37 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   ImageBackground,
-  Image
+  Image,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 
 const categories = [
-  { id: 1, name: 'Resistencia', color: ['#FF9500', '#FF5E00'], image: require('../../assets/images/categorias/resistencia.jpg') },
-  { id: 2, name: 'Fuerza', color: ['#FF3B30', '#D70015'], image: require('../../assets/images/categorias/fuerza.jpg') },
-  { id: 3, name: 'Velocidad', color: ['#007AFF', '#0056D6'], image: require('../../assets/images/categorias/velocidad.jpg') },
-  { id: 4, name: 'Equilibrio', color: ['#AF52DE', '#8E44AD'], image: require('../../assets/images/categorias/equilibrio.png') },
+  {
+    id: 1,
+    name: 'Resistencia',
+    color: ['#FF9500', '#FF5E00'],
+    image: require('../../assets/images/categorias/resistencia.jpg'),
+  },
+  {
+    id: 2,
+    name: 'Fuerza',
+    color: ['#FF3B30', '#D70015'],
+    image: require('../../assets/images/categorias/fuerza.jpg'),
+  },
+  {
+    id: 3,
+    name: 'Velocidad',
+    color: ['#007AFF', '#0056D6'],
+    image: require('../../assets/images/categorias/velocidad.jpg'),
+  },
+  {
+    id: 4,
+    name: 'Equilibrio',
+    color: ['#AF52DE', '#8E44AD'],
+    image: require('../../assets/images/categorias/equilibrio.png'),
+  },
 ];
 
 export default function HomeScreen() {
@@ -25,49 +45,64 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
 
   const padding = 16;
-  // Para una sola columna, cada tarjeta ocupará casi el ancho completo de la pantalla
-  const cardWidth = width - (padding * 2);
-  // Altura proporcional (puedes ajustar el ratio)
-  const cardHeight = cardWidth * 0.6;
+  // Para una sola columna, cada tarjeta ocupará casi todo el ancho
+  const cardWidth = width - padding * 2;
+  const cardHeight = cardWidth * 0.6; // Ajusta el ratio a tu gusto
 
   return (
-    <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        {/* Logo y Encabezado */}
-        <View style={styles.header}>
-          <Image source={require('../../assets/images/frames/1.gif')} style={styles.logo} />
-          <Text style={styles.title}>Minijuegos     </Text>
-        </View>
+    <SafeAreaView style={styles.safeArea}>
+      {/* El LinearGradient como contenedor de fondo */}
+      <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.container}>
+        <ScrollView contentContainerStyle={styles.contentContainer}>
+          {/* Logo y Encabezado */}
+          <View style={styles.header}>
+            <Image
+              source={require('../../assets/images/frames/1.gif')}
+              style={styles.logo}
+            />
+            <Text style={styles.title}>Minijuegos</Text>
+          </View>
 
-        {/* Tarjetas de Categorías en formato columna (4x1) */}
-        <View style={styles.grid}>
-          {categories.map((category, index) => (
-            <TouchableOpacity
-              style={[styles.card, { width: cardWidth, height: cardHeight, marginBottom: 16 }]}
-              onPress={() => router.push(`/category/${category.id}`)}
-              activeOpacity={0.85}
-              key={category.id}
-            >
-              <ImageBackground
-                source={category.image}
-                style={styles.imageBackground}
-                imageStyle={styles.imageBorder}
+          {/* Tarjetas de Categorías en formato columna (4x1) */}
+          <View style={styles.grid}>
+            {categories.map((category) => (
+              <TouchableOpacity
+                style={[
+                  styles.card,
+                  { width: cardWidth, height: cardHeight, marginBottom: 16 },
+                ]}
+                onPress={() => router.push(`/category/${category.id}`)}
+                activeOpacity={0.85}
+                key={category.id}
               >
-                <LinearGradient colors={category.color as [string, string]} style={styles.overlay} />
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardText}>{category.name}</Text>
-                  <Text style={styles.cardSubtext}> Nivel 1</Text>
-                </View>
-              </ImageBackground>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-    </LinearGradient>
+                <ImageBackground
+                  source={category.image}
+                  style={styles.imageBackground}
+                  imageStyle={styles.imageBorder}
+                >
+                  <LinearGradient
+                    colors={category.color as [string, string]}
+                    style={styles.overlay}
+                  />
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardText}>{category.name}</Text>
+                    <Text style={styles.cardSubtext}> Nivel 1</Text>
+                  </View>
+                </ImageBackground>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#0F172A', // color base si quieres que coincida con el gradiente
+  },
   container: {
     flex: 1,
   },
@@ -76,17 +111,18 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginTop: 50,
+    // marginTop: 50, // Quita o reduce este margin si se ve muy recortado
     marginBottom: 20,
   },
   logo: {
     width: 100,
     height: 100,
     marginBottom: 10,
+    resizeMode: 'cover',
   },
   title: {
     fontFamily: 'Inter_700Bold',
-    fontSize: 20,
+    fontSize: 22,
     color: '#FFF',
     textAlign: 'center',
   },
