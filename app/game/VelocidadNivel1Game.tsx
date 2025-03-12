@@ -7,20 +7,18 @@ import {
   StyleSheet,
   Image,
   Dimensions,
-  Animated,
 } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
-import Cronometro from './Cronometro';
 import { supabase } from '@/lib/supabaseClient';
 import { updateAchievementProgress } from '@/lib/achievementsService';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Umbral para detectar un salto (valor a calibrar)
+// Umbral para detectar un salto (ajusta este valor según pruebas)
 const JUMP_THRESHOLD = 2.5;
 
-// Array de frames del corredor (de 0.gif a 13.gif)
+// Array de frames del corredor (0.gif a 13.gif)
 const RUNNER_FRAMES = [
   require('../../assets/images/velocidad/0.gif'),
   require('../../assets/images/velocidad/1.gif'),
@@ -40,17 +38,11 @@ const RUNNER_FRAMES = [
 
 export default function VelocidadNivel1Game() {
   // Estado del juego
-  const [testStarted, setTestStarted] = useState(true); // Supongamos que el juego inicia al cargar
+  const [testStarted] = useState(true); // Asumimos que el juego inicia al cargar
   const [raceEnded, setRaceEnded] = useState(false);
-  const [gameTime, setGameTime] = useState(30); // 30 segundos de prueba
   const [repCount, setRepCount] = useState(0);
-  const [finalTime, setFinalTime] = useState(0);
-
-  // Estado para animar el runner
   const [frameIndex, setFrameIndex] = useState(0);
-  // Estado para evitar conteos dobles (cooldown)
   const [canCount, setCanCount] = useState(true);
-  // Sonido para beep en cada salto
   const [soundBeep, setSoundBeep] = useState<Audio.Sound | null>(null);
 
   // Cargar el sonido beep.mp3
@@ -62,7 +54,7 @@ export default function VelocidadNivel1Game() {
         );
         setSoundBeep(sound);
       } catch (error) {
-        console.log('Error loading beep sound', error);
+        console.log('Error loading beep sound:', error);
       }
     }
     loadBeep();
@@ -71,33 +63,21 @@ export default function VelocidadNivel1Game() {
     };
   }, []);
 
-  // Animar los frames del corredor cada 100ms
+  // Animar los frames del corredor cada 100ms con un pequeño retraso para evitar titileo
   useEffect(() => {
     let animationInterval: NodeJS.Timeout;
     const delayTimeout = setTimeout(() => {
       animationInterval = setInterval(() => {
         setFrameIndex((prev) => (prev + 1) % RUNNER_FRAMES.length);
       }, 100);
-    }, 200); // Retraso de 200 ms
+    }, 200);
     return () => {
       clearTimeout(delayTimeout);
       clearInterval(animationInterval);
     };
   }, []);
 
-  // Cronómetro de cuenta regresiva de 30 seg
-  useEffect(() => {
-    if (testStarted && !raceEnded && gameTime > 0) {
-      const timer = setTimeout(() => {
-        setGameTime((prev) => prev - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (gameTime === 0 && testStarted) {
-      setRaceEnded(true);
-    }
-  }, [testStarted, gameTime, raceEnded]);
-
-  // Detección de saltos con acelerómetro
+  // Detección de saltos mediante acelerómetro
   useEffect(() => {
     if (testStarted && !raceEnded) {
       const subscription = Accelerometer.addListener((data) => {
@@ -114,7 +94,8 @@ export default function VelocidadNivel1Game() {
               }
             })();
           }
-          setTimeout(() => setCanCount(true), 1000); // Cooldown de 1 segundo
+          // Cooldown de 1 segundo para evitar múltiples conteos rápidos
+          setTimeout(() => setCanCount(true), 1000);
         }
       });
       Accelerometer.setUpdateInterval(100);
@@ -122,27 +103,14 @@ export default function VelocidadNivel1Game() {
     }
   }, [testStarted, raceEnded, canCount, soundBeep]);
 
-  // Callback para el cronómetro: actualiza el tiempo final
-  const handleTimeChange = (timeInSeconds: number) => {
-    if (!raceEnded) {
-      setFinalTime(30 - timeInSeconds);
-    }
-  };
-
-  // Formatear tiempo (MM:SS)
-  function formatTime(seconds: number): string {
-    const mm = Math.floor(seconds / 60);
-    const ss = seconds % 60;
-    return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
-  }
-
-  // Al finalizar el juego, actualizamos el logro en Supabase
+  // Al finalizar el juego (por ejemplo, cuando se acaben los 30 seg) se actualiza el logro en Supabase.
+  // En este ejemplo, usamos el repCount para la actualización.
   useEffect(() => {
     if (raceEnded) {
       (async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Para Velocidad (categoría "3"), no es acumulativo (false)
+          // Para Velocidad (categoría "3"), el logro no es acumulativo
           updateAchievementProgress(user.id, '3', 1, repCount, false);
         }
       })();
@@ -163,10 +131,6 @@ export default function VelocidadNivel1Game() {
             source={require('../../assets/images/velocidadBackground.jpg')}
             style={styles.background}
           />
-          {/* Cronómetro en overlay */}
-          <View style={styles.timerOverlay}>
-            <Cronometro isRunning={testStarted && !raceEnded} onTimeChange={handleTimeChange} />
-          </View>
           {/* Contador de repeticiones */}
           <View style={styles.repCounterOverlay}>
             <Text style={styles.repCounterText}>Reps: {repCount}</Text>
@@ -194,14 +158,6 @@ const styles = StyleSheet.create({
     height: SCREEN_H,
     resizeMode: 'cover',
   },
-  timerOverlay: {
-    position: 'absolute',
-    top: 80,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 11,
-  },
   repCounterOverlay: {
     position: 'absolute',
     top: 140,
@@ -220,10 +176,10 @@ const styles = StyleSheet.create({
   },
   runner: {
     position: 'absolute',
-    width: 300, // Más grande
-    height: 300, // Más grande
+    width: 300,
+    height: 300,
     bottom: 50,
-    left: SCREEN_W / 2 - 125, // Centrado para un ancho de 250
+    left: SCREEN_W / 2 - 125,
   },
   resultContainer: {
     flex: 1,
