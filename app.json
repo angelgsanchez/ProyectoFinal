@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "proyectofinal",
-    "slug": "proyectofinal",
+    "slug": "entrenamientos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -35,8 +35,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "afcfd552-3507-4fb1-9b6d-37c5dc580c21"
+        "projectId": "09d589f3-0558-4d18-bae6-f0d3b621d279"
       }
-    }
+    },
+    "owner": "david2111"
   }
 }

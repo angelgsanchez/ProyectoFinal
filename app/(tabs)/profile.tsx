@@ -35,7 +35,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Cargando perfil...</Text>
+        <Text style={styles.title}>Cargando perfil.....</Text>
       </View>
     );
   }
